@@ -1,0 +1,6 @@
+#/usr/bin/env bash
+
+# This file is sourced by other git hook script to read the variables stored
+MASTER_TARGET=s3://testing.defyantmedia.com/test-repo/
+DEVELOP_TARGET=s3://testing.defyantmedia.com/test-repo-develop/
+RELEASE_TARGET=s3://testing.defyantmedia.com/test-repo-release/
