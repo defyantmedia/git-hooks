@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+
+# Git post-merge hook to sync the contents of the repository to an AWS S3 
+# buckets and update the .git/hooks from the .hooks directory in the repo 
+# root. Note that hidden directories (including .git and .hooks) are excluded
+# To use this script copy it to the repository .git/hooks directory removing the
+# .s3 suffix. The script will also copy new hooks from the .hooks directory in
+# the repository root.
+
+echo *****POST MERGE HOOK******
+
+# confirm the s3cmd command is available
+if [[ $(s3cmd --version) == 127 ]]
+  then
+  echo "s3cmd not available will be unable to sync to s3"
+  echo "script will terminate"
+  exit
+fi
+
+# set variables associated with the git repository
+BRANCH=$(git symbolic-ref --short HEAD)
+ROOT=$PWD/
+HOOKS=$ROOT/$GIT_DIR/hooks
+CONFIG=$HOOKS/config.s3
+echo Branch: $BRANCH
+echo Repository root: $ROOT
+echo Hooks directory: $HOOKS
+
+# copy in the latest hooks
+# note that the updated post-merge hook won't be used until the next merge
+echo Copying hooks from $ROOT/.hooks
+cp $ROOT/.hooks/* $HOOKS/
+chmod +x $HOOKS/*
+
+# source paramaters from the config file
+# currently expects MASTER_TARGET and DEVELOP_TARGET
+echo Reading targets from $CONFIG
+source $CONFIG
+
+# depending on the name of the branch push to the different targets
+if [[ $BRANCH == *"master"* ]]
+  then
+    if [[ $MASTER_TARGET == $null ]]
+      then 
+      echo "MASTER_TARGET not specified"
+      echo "Content not published"
+    else
+      echo "Merging to master branch"
+      echo "Pushing to $MASTER_TARGET"
+      s3cmd sync $ROOT $MASTER_TARGET --exclude=*.*/*
+      if [[ $? == 0 ]]
+        then
+        echo "s3cmd sync completed"
+      else
+        echo "s3cmd sync failed"
+      fi
+    fi
+elif [[ $BRANCH == *"develop"* ]]
+  then
+    if [[ $DEVELOP_TARGET == $null ]]
+      then 
+      echo "DEVELOP_TARGET not specified"
+      echo "Content not published"
+    else
+      echo "Merging to develop branch"
+      echo "Pushing to $DEVELOP_TARGET"
+      s3cmd sync $ROOT $DEVELOP_TARGET --exclude=*.*/*
+      if [[ $? == 0 ]]
+        then
+        echo "s3cmd sync completed"
+      else
+        echo "s3cmd sync failed"
+      fi
+    fi
+else
+  echo "Branch name $BRANCH not recognised - content not pushed"
+fi
+echo *****END POST MERGE HOOK******
+exit
